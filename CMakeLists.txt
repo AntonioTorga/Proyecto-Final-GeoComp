@@ -3,9 +3,12 @@ if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
     set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
 endif()
 
+
 project(TriangleToQuadConverter)
 
-find_package(CGAL REQUIRED)
+find_package(CGAL REQUIRED OPTIONAL_COMPONENTS Qt5)
+
+add_definitions(-DCGAL_USE_BASIC_VIEWER)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -30,6 +33,10 @@ add_library(TriangleToQuadConverter STATIC ${SOURCES} ${HEADERS})
 target_include_directories(TriangleToQuadConverter PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/TriangleToQuadConverter)
 
 add_executable(main ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
+
+if(CGAL_Qt5_FOUND)
+target_link_libraries(TriangleToQuadConverter PUBLIC CGAL::CGAL_Basic_viewer)
+endif()
 
 target_link_libraries(TriangleToQuadConverter PUBLIC CGAL::CGAL)
 target_link_libraries(main PUBLIC TriangleToQuadConverter CGAL::CGAL)

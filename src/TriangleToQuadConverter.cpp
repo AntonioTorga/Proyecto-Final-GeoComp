@@ -8,37 +8,50 @@ bool TriangleToQuadConverter::TriangleSplitting(const Mesh& triangleMesh, Mesh& 
 	Mesh newMesh;
 	// Iterate over the faces of the input mesh
 	for (f_index face : triangleMesh.faces()) {
-		// Get the vertices of the face and put on a vector
 		splitTriangle(triangleMesh, face, newMesh);
 	}
-	quadMesh = newMesh;
-}
+	// check newMesh has something
+	if (newMesh.number_of_faces() == 0) {
+		std::cout << "New mesh is empty" << std::endl;
+	}
+	// erase duplicate vertices
 
+	quadMesh = newMesh;
+	return true;
+}
 
 bool TriangleToQuadConverter::TriangleMerging(const Mesh & triangleMesh, Mesh & quadMesh)
 {
 	// Check if the input mesh is a triangle mesh
 	if (!checkIfTriangleMesh(triangleMesh)) return false;
-	Mesh newMesh;
+	quadMesh.clear();
 
 	auto triangles = triangleMesh.faces();
-	for (auto triangle : triangles) {
-		mergeTriangle(triangleMesh, triangle, newMesh);
+	std::vector<f_index> triangles_vector(triangles.begin(), triangles.end());
+
+	while (triangles_vector.size()>0) {
+		f_index face = triangles_vector.back();
+		triangles_vector.pop_back();
+		h_index h_e;
+		f_index other_face = getNextTriangle(triangleMesh, face, triangles_vector, h_e);
+		if (face == other_face) {
+			// If the face has no other triangle to merge with, add it to the new mesh as a triangle
+
+			// Get three vertices of the triangle
+			Point v0, v1, v2;
+			getVerticesFromFace(triangleMesh, face, v0, v1, v2);
+			quadMesh.add_face(quadMesh.add_vertex(v0), quadMesh.add_vertex(v1), quadMesh.add_vertex(v2));
+
+			continue;
+		}
+		mergeTriangle(triangleMesh, h_e, quadMesh);
 	}
-	quadMesh = newMesh;
+	return true;
 }
 
 bool TriangleToQuadConverter::checkIfTriangle(const Mesh& mesh, const f_index& face)
 {
-	auto half_edge = mesh.halfedge(face);
-	auto h_edge = half_edge;
-	int count = 0;
-	do {
-		if (mesh.is_border(h_edge)) return false;
-		h_edge = mesh.next(h_edge);
-		count++;
-	} while (h_edge != half_edge);
-	return count == 3;
+	return mesh.degree(face) == 3;
 }
 
 bool TriangleToQuadConverter::checkIfTriangleMesh(const Mesh& mesh)
@@ -66,8 +79,8 @@ void TriangleToQuadConverter::splitTriangle(const Mesh& triangleMesh, const f_in
 
 	getVerticesFromFace(triangleMesh, face, v0, v1, v2);
 
-	// Compute the circumcenter of the vertices
-	Point c = CGAL::circumcenter(v0, v1, v2);
+	// Compute the centroid of the vertices
+	Point c = CGAL::centroid(v0, v1, v2);
 
 	Point mid_v0v1 = CGAL::midpoint(v0, v1), mid_v1v2 = CGAL::midpoint(v1, v2), mid_v2v0 = CGAL::midpoint(v2, v0);
 
@@ -81,20 +94,37 @@ void TriangleToQuadConverter::splitTriangle(const Mesh& triangleMesh, const f_in
 	newMesh.add_face(mid_v2v0_index, c_index, mid_v1v2_index, v2_index);
 }
 
-void TriangleToQuadConverter::mergeTriangle(const Mesh& triangleMesh, const f_index& face, Mesh& newMesh)
+void TriangleToQuadConverter::mergeTriangle(const Mesh& oldMesh, h_index h_e, Mesh& newMesh)
 {
-	
+	// get the 4 vertices of the quad
+	v_index v0 = oldMesh.target(h_e);
+	v_index v1 = oldMesh.target(oldMesh.next(h_e));
+	v_index v2 = oldMesh.source(h_e);
+	v_index v3 = oldMesh.target(oldMesh.next(oldMesh.opposite(h_e)));
+
+	//add the 4 vertices to the new mesh
+	v_index v0_index = newMesh.add_vertex(oldMesh.point(v0));
+	v_index v1_index = newMesh.add_vertex(oldMesh.point(v1));
+	v_index v2_index = newMesh.add_vertex(oldMesh.point(v2));
+	v_index v3_index = newMesh.add_vertex(oldMesh.point(v3));
+
+	//add the face to the new mesh
+	newMesh.add_face(v0_index, v1_index, v2_index, v3_index);
 }
 
-f_index TriangleToQuadConverter::getNextTriangle(const Mesh& mesh, const f_index& face)
+f_index TriangleToQuadConverter::getNextTriangle(const Mesh& mesh, const f_index& face, std::vector<f_index>& triangles_vector, h_index& h_e)
 {
 	auto halfedge = mesh.halfedge(face);
 	auto h_edge = halfedge;
 	do {
 		f_index pos_triangle = mesh.face(mesh.opposite(h_edge));
-		if (checkIfTriangle(mesh, pos_triangle)) return pos_triangle;
+		if (std::find(triangles_vector.begin(), triangles_vector.end(), pos_triangle) != triangles_vector.end())
+		{
+			h_e = h_edge;
+			return pos_triangle;
+		}
+		h_edge = mesh.next(h_edge);
 	} while (h_edge != halfedge);
-
 	return face;
 }
 
