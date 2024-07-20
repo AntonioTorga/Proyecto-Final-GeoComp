@@ -14,8 +14,7 @@ bool TriangleToQuadConverter::TriangleSplitting(const Mesh& triangleMesh, Mesh& 
 	if (newMesh.number_of_faces() == 0) {
 		std::cout << "New mesh is empty" << std::endl;
 	}
-	// erase duplicate vertices
-
+	// cast newMesh to polygon soup
 	quadMesh = newMesh;
 	return true;
 }
@@ -44,6 +43,9 @@ bool TriangleToQuadConverter::TriangleMerging(const Mesh & triangleMesh, Mesh & 
 
 			continue;
 		}
+		// Erase other_face from vector
+		triangles_vector.erase(std::find(triangles_vector.begin(), triangles_vector.end(), other_face));
+		// If the face has another triangle to merge with, merge them into a quad
 		mergeTriangle(triangleMesh, h_e, quadMesh);
 	}
 	return true;
