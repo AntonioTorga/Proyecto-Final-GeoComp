@@ -10,10 +10,6 @@ bool TriangleToQuadConverter::TriangleSplitting(const Mesh& triangleMesh, Mesh& 
 	for (f_index face : triangleMesh.faces()) {
 		splitTriangle(triangleMesh, face, newMesh);
 	}
-	// check newMesh has something
-	if (newMesh.number_of_faces() == 0) {
-		std::cout << "New mesh is empty" << std::endl;
-	}
 	// cast newMesh to polygon soup
 	quadMesh = newMesh;
 	return true;
